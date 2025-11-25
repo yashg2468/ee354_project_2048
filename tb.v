@@ -64,9 +64,9 @@ module tetris_2048_tb;
     // This looks at where the cursor IS, and pulses Left/Right
     // until it gets to where we WANT it.
     task move_to_col(input [1:0] target);
+        // FIX: Variable declaration must be BEFORE 'begin'
+        integer safety; 
         begin
-            // Timeout safety in case it gets stuck
-            integer safety;
             safety = 0;
             
             while (cursor_col != target && safety < 10) begin
