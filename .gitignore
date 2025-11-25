@@ -3,5 +3,5 @@
 *.pdf
 tiles_raw/
 vga_moving_block/
-!vga_moving_block/src
+!vga_moving_block/src/
 .DS_Store
