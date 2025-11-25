@@ -87,13 +87,37 @@ module tetris_2048_tb;
         end
     endtask
 
-    // Task 3: Combine Move and Drop
+    // Task 3: Visualizer
+    task print_board;
+        integer i, j;
+        reg [15:0] decoded_val;
+        begin
+            $display("\n    +----+----+----+----+");
+            for (i=0; i<4; i=i+1) begin
+                $write("    |");
+                for (j=0; j<4; j=j+1) begin
+                    // Decode power to actual number (0 remains 0)
+                    if (debug_grid[i][j] == 0) 
+                        decoded_val = 0;
+                    else
+                        decoded_val = 1 << debug_grid[i][j];
+                        
+                    $write(" %4d |", decoded_val);
+                end
+                $display("\n    +----+----+----+----+");
+            end
+            $display("    Score: %d  |  Game Over: %b", score, game_over);
+            $display("");
+        end
+    endtask
+
+    // Task 4: Combine Move, Drop, and Print
     task drop_in_col(input [1:0] c);
         begin
-            $display("Test: Moving to Col %0d and Dropping value %0d...", c, (1 << spawn_val));
+            $display("ACTION: Moving to Col %0d -> Dropping %0d", c, (1 << spawn_val));
             move_to_col(c);
             press_btn_drop;
-            $display("      Drop Complete.");
+            print_board; // Show result immediately
         end
     endtask
 
@@ -113,6 +137,9 @@ module tetris_2048_tb;
         #50;
         rst = 0;
         #20;
+        
+        $display("Initial Board:");
+        print_board;
 
         // 3. Play the Game
         // Note: spawn_val is random, so the exact merges depend on the LFSR.
@@ -135,16 +162,18 @@ module tetris_2048_tb;
         
         // Drop in Col 0 (Overflow? Should trigger Game Over or ignore)
         drop_in_col(0);
+        
+        // Drop in Col 3 just to see movement across board
+        drop_in_col(3);
 
         // Wait to see results
         #100;
         
         if (game_over) 
-            $display("--- GAME OVER TRIGGERED CORRECTLY ---");
+            $display("--- GAME OVER TRIGGERED ---");
         else 
             $display("--- BOARD STILL ALIVE ---");
 
-        $display("Final Score: %d", score);
         $finish;
     end
 
