@@ -104,22 +104,22 @@ module vga_top(
     always @ (SSD) 
     begin : HEX_TO_SSD
         case (SSD)
-            4'b0000: SSD_CATHODES = 8'b00000010; // 0
-            4'b0001: SSD_CATHODES = 8'b10011110; // 1
-            4'b0010: SSD_CATHODES = 8'b00100100; // 2
-            4'b0011: SSD_CATHODES = 8'b00001100; // 3
-            4'b0100: SSD_CATHODES = 8'b10011000; // 4
-            4'b0101: SSD_CATHODES = 8'b01001000; // 5
-            4'b0110: SSD_CATHODES = 8'b01000000; // 6
-            4'b0111: SSD_CATHODES = 8'b00011110; // 7
-            4'b1000: SSD_CATHODES = 8'b00000000; // 8
-            4'b1001: SSD_CATHODES = 8'b00001000; // 9
-            4'b1010: SSD_CATHODES = 8'b00010000; // A
-            4'b1011: SSD_CATHODES = 8'b11000000; // B
-            4'b1100: SSD_CATHODES = 8'b01100010; // C
-            4'b1101: SSD_CATHODES = 8'b10000100; // D
-            4'b1110: SSD_CATHODES = 8'b01100000; // E
-            4'b1111: SSD_CATHODES = 8'b01110000; // F    
+            4'b0000: SSD_CATHODES = 8'b00000011; // 0
+            4'b0001: SSD_CATHODES = 8'b10011111; // 1
+            4'b0010: SSD_CATHODES = 8'b00100101; // 2
+            4'b0011: SSD_CATHODES = 8'b00001101; // 3
+            4'b0100: SSD_CATHODES = 8'b10011001; // 4
+            4'b0101: SSD_CATHODES = 8'b01001001; // 5
+            4'b0110: SSD_CATHODES = 8'b01000001; // 6
+            4'b0111: SSD_CATHODES = 8'b00011111; // 7
+            4'b1000: SSD_CATHODES = 8'b00000001; // 8
+            4'b1001: SSD_CATHODES = 8'b00001001; // 9
+            4'b1010: SSD_CATHODES = 8'b00010001; // A
+            4'b1011: SSD_CATHODES = 8'b11000001; // B
+            4'b1100: SSD_CATHODES = 8'b01100011; // C
+            4'b1101: SSD_CATHODES = 8'b10000101; // D
+            4'b1110: SSD_CATHODES = 8'b01100001; // E
+            4'b1111: SSD_CATHODES = 8'b01110001; // F    
             default: SSD_CATHODES = 8'bXXXXXXXX;
         endcase
     end 
