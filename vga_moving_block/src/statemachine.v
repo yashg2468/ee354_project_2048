@@ -158,44 +158,27 @@ module tetris_2048_core (
                     display_ready <= 1;
                     state <= STATE_SPAWN;
                 end
-               
+                               
                 STATE_SPAWN: begin
-                    cursor_col <= 1;
-               
-                    // UPDATED: Adjusted spawning probabilities
-                    if (max_power_on_board < 4) begin
-                        // Early game: 75% = 2, 25% = 4
-                        rand_select = lfsr[2:0];
-                        if (rand_select < 6)
-                            spawn_val <= 1;  // 75% chance of 2
-                        else
-                            spawn_val <= 2;  // 25% chance of 4
-                    end
-                    else begin
-                        // Mid/Late game: Reduced low tile frequency
-                        rand_select = lfsr[2:0];  // 0-7
-                       
-                        if (rand_select < 5) begin
-                            // 62.5%: High tiles [max-3, max-2, max-1]
-                            base_spawn_power = max_power_on_board - 3;
-                            spawn_val <= base_spawn_power + (lfsr[4:3] % 3);
-                        end
-                        else if (rand_select < 7) begin
-                            // 25%: Mid tiles [max-5, max-4]
-                            if (max_power_on_board >= 5)
-                                spawn_val <= (max_power_on_board - 5) + (lfsr[5] ? 1 : 0);
-                            else
-                                spawn_val <= 1;
-                        end
-                        else begin
-                            // 12.5%: Low tiles (2 or 4) - REDUCED from 25%
-                            spawn_val <= (lfsr[6] ? 2 : 1);
-                        end
-                    end
-               
-                    display_ready <= 1;
+                    cursor_col <= 1; 
+                
+                    if (max_power_on_board < 4)
+                        base_spawn_power = 1;
+                    else
+                        base_spawn_power = max_power_on_board - 3;
+                
+                    rand_select = lfsr[2:0];  // 0-7
+                
+                    if (rand_select < 5)
+                        spawn_val <= base_spawn_power;        // 62.5%
+                    else if (rand_select < 7)
+                        spawn_val <= base_spawn_power + 1;    // 25%
+                    else
+                        spawn_val <= base_spawn_power + 2;    // 12.5%
+                
                     state <= STATE_INPUT;
                 end
+                
 
                 STATE_INPUT: begin
                     if (btn_l_edge && cursor_col > 0) begin
