@@ -1,129 +1,140 @@
 module vga_top(
     input ClkPort,
-    input BtnC,
+    input BtnC,  // Reset
     input BtnU,
-    input BtnR,
-    input BtnL,
     input BtnD,
-    //VGA signal
+    input BtnL,
+    input BtnR,
+    // VGA outputs
     output hSync, vSync,
     output [3:0] vgaR, vgaG, vgaB,
-    
-    //SSG signal 
-    output An0, An1, An2, An3, An4, An5, An6, An7,
-    output Ca, Cb, Cc, Cd, Ce, Cf, Cg, Dp,
-    
+    // 8 SSDs
+    output An7, An6, An5, An4, An3, An2, An1, An0,  // All 8 anodes
+    output Ca, Cb, Cc, Cd, Ce, Cf, Cg,
+    output Dp,
+    // Flash memory (if needed)
     output QuadSpiFlashCS
 );
-    wire Reset;
-    assign Reset=BtnC;
+
     wire bright;
     wire[9:0] hc, vc;
-    wire[15:0] score;  // Now used for game score!
-    wire up,down,left,right;
+    wire[15:0] score;
     wire [11:0] rgb;
+    wire clk, digclk;
     
     reg [3:0] SSD;
-    wire [3:0] SSD3, SSD2, SSD1, SSD0;
+    wire [3:0] SSD0, SSD1, SSD2, SSD3, SSD4, SSD5, SSD6, SSD7;
     reg [7:0] SSD_CATHODES;
-    wire [1:0] ssdscan_clk;
+    reg [26:0] DIV_CLK;
     
-    reg [27:0] DIV_CLK;
-    always @ (posedge ClkPort, posedge Reset)  
-    begin : CLOCK_DIVIDER
-      if (Reset)
-            DIV_CLK <= 0;
-      else
-            DIV_CLK <= DIV_CLK + 1'b1;
+    // Disable flash memory
+    assign QuadSpiFlashCS = 1'b1;
+    
+    // Clock divider
+    always @(posedge ClkPort) begin
+        DIV_CLK <= DIV_CLK + 1'b1;
     end
     
-    wire move_clk;
-    assign move_clk=DIV_CLK[19];
-    wire [11:0] background;
+    assign clk = ClkPort;  // 100MHz
+    assign digclk = DIV_CLK[19];  // ~190Hz for SSD refresh
     
-    // Display controller
+    // VGA display controller
     display_controller dc(
-        .clk(ClkPort), 
-        .hSync(hSync), 
-        .vSync(vSync), 
-        .bright(bright), 
-        .hCount(hc), 
+        .clk(clk),
+        .hSync(hSync),
+        .vSync(vSync),
+        .bright(bright),
+        .hCount(hc),
         .vCount(vc)
     );
     
     // Block controller with game logic
-    block_controller sc(
-        .clk(move_clk), 
-        .mastClk(ClkPort), 
-        .bright(bright), 
-        .rst(BtnC), 
-        .up(BtnU), 
+    block_controller bc(
+        .clk(clk),
+        .mastClk(clk),
+        .bright(bright),
+        .rst(BtnC),
+        .up(BtnU),
         .down(BtnD),
         .left(BtnL),
         .right(BtnR),
-        .hCount(hc), 
-        .vCount(vc), 
-        .rgb(rgb), 
-        .background(background),
-        .score_out(score)  // ADD THIS LINE
+        .hCount(hc),
+        .vCount(vc),
+        .rgb(rgb),
+        .background(),
+        .score_out(score)
     );
     
-    assign vgaR = rgb[11 : 8];
-    assign vgaG = rgb[7  : 4];
-    assign vgaB = rgb[3  : 0];
+    // VGA color output
+    assign vgaR = rgb[11:8];
+    assign vgaG = rgb[7:4];
+    assign vgaB = rgb[3:0];
     
-    assign QuadSpiFlashCS = 1'b1;
+    // ===== 8-DIGIT DECIMAL SCORE DISPLAY =====
     
-    //------------
-    // 7-Segment Display - Show Score in Decimal
-    //------------
+    // Convert 16-bit score to 8 decimal digits using BCD
+    wire [3:0] digit0, digit1, digit2, digit3, digit4;
     
-    // Display score in hex (4 digits can show up to 65535)
-    assign SSD3 = score[15:12];
-    assign SSD2 = score[11:8];
-    assign SSD1 = score[7:4];
-    assign SSD0 = score[3:0];
-
-    assign ssdscan_clk = DIV_CLK[19:18];
-    assign An0  = !(~(ssdscan_clk[1]) && ~(ssdscan_clk[0]));
-    assign An1  = !(~(ssdscan_clk[1]) &&  (ssdscan_clk[0]));
-    assign An2  =  !((ssdscan_clk[1]) && ~(ssdscan_clk[0]));
-    assign An3  =  !((ssdscan_clk[1]) &&  (ssdscan_clk[0]));
-    assign {An7, An6, An5, An4} = 4'b1111;
+    // Binary to BCD conversion for 5 digits (max 65535)
+    bin2bcd converter(
+        .binary(score),
+        .thousands(digit4),
+        .hundreds(digit3),
+        .tens(digit2),
+        .ones(digit1)
+    );
     
-    always @ (ssdscan_clk, SSD0, SSD1, SSD2, SSD3)
-    begin : SSD_SCAN_OUT
-        case (ssdscan_clk) 
-            2'b00: SSD = SSD0;
-            2'b01: SSD = SSD1;
-            2'b10: SSD = SSD2;
-            2'b11: SSD = SSD3;
-        endcase 
+    // Assign to SSDs (right-aligned, leading zeros blank)
+    assign SSD0 = digit1;           // Ones
+    assign SSD1 = digit2;           // Tens
+    assign SSD2 = digit3;           // Hundreds
+    assign SSD3 = digit4;           // Thousands
+    assign SSD4 = (score >= 10000) ? ((score / 10000) % 10) : 4'd10;  // Ten-thousands (blank if 0)
+    assign SSD5 = 4'd10;            // Blank
+    assign SSD6 = 4'd10;            // Blank
+    assign SSD7 = 4'd10;            // Blank
+    
+    // SSD multiplexing (scan through all 8 displays)
+    reg [2:0] ssd_select;
+    always @(posedge digclk) begin
+        ssd_select <= ssd_select + 1;
     end
-
-    always @ (SSD) 
-    begin : HEX_TO_SSD
-        case (SSD)
-            4'b0000: SSD_CATHODES = 8'b00000010; // 0
-            4'b0001: SSD_CATHODES = 8'b10011110; // 1
-            4'b0010: SSD_CATHODES = 8'b00100100; // 2
-            4'b0011: SSD_CATHODES = 8'b00001100; // 3
-            4'b0100: SSD_CATHODES = 8'b10011000; // 4
-            4'b0101: SSD_CATHODES = 8'b01001000; // 5
-            4'b0110: SSD_CATHODES = 8'b01000000; // 6
-            4'b0111: SSD_CATHODES = 8'b00011110; // 7
-            4'b1000: SSD_CATHODES = 8'b00000000; // 8
-            4'b1001: SSD_CATHODES = 8'b00001000; // 9
-            4'b1010: SSD_CATHODES = 8'b00010000; // A
-            4'b1011: SSD_CATHODES = 8'b11000000; // B
-            4'b1100: SSD_CATHODES = 8'b01100010; // C
-            4'b1101: SSD_CATHODES = 8'b10000100; // D
-            4'b1110: SSD_CATHODES = 8'b01100000; // E
-            4'b1111: SSD_CATHODES = 8'b01110000; // F    
-            default: SSD_CATHODES = 8'bXXXXXXXX;
-        endcase
-    end 
     
-    assign {Ca, Cb, Cc, Cd, Ce, Cf, Cg, Dp} = {SSD_CATHODES};
+    // Select which SSD to display
+    always @(*) begin
+        case(ssd_select)
+            3'd0: SSD = SSD0;
+            3'd1: SSD = SSD1;
+            3'd2: SSD = SSD2;
+            3'd3: SSD = SSD3;
+            3'd4: SSD = SSD4;
+            3'd5: SSD = SSD5;
+            3'd6: SSD = SSD6;
+            3'd7: SSD = SSD7;
+            default: SSD = 4'd10;
+        endcase
+    end
+    
+    // Anode control (active low) - one at a time
+    assign {An7, An6, An5, An4, An3, An2, An1, An0} = ~(8'b00000001 << ssd_select);
+    
+    // 7-segment decoder
+    always @(*) begin
+        case(SSD)
+            4'd0: SSD_CATHODES = 8'b00000011;  // 0
+            4'd1: SSD_CATHODES = 8'b10011111;  // 1
+            4'd2: SSD_CATHODES = 8'b00100101;  // 2
+            4'd3: SSD_CATHODES = 8'b00001101;  // 3
+            4'd4: SSD_CATHODES = 8'b10011001;  // 4
+            4'd5: SSD_CATHODES = 8'b01001001;  // 5
+            4'd6: SSD_CATHODES = 8'b01000001;  // 6
+            4'd7: SSD_CATHODES = 8'b00011111;  // 7
+            4'd8: SSD_CATHODES = 8'b00000001;  // 8
+            4'd9: SSD_CATHODES = 8'b00001001;  // 9
+            default: SSD_CATHODES = 8'b11111111;  // Blank
+        endcase
+    end
+    
+    assign {Ca, Cb, Cc, Cd, Ce, Cf, Cg, Dp} = SSD_CATHODES;
 
 endmodule
